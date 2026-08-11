@@ -1,0 +1,36 @@
+{
+  "name": "walrus-memory-agent-demo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A minimal agent harness that writes and recalls memory with Walrus Memory.",
+  "license": "Apache-2.0",
+  "keywords": [
+    "walrus-memory",
+    "memwal",
+    "walrus",
+    "sui",
+    "agent",
+    "memory",
+    "example"
+  ],
+  "scripts": {
+    "agent": "tsx src/agent.ts",
+    "mem": "tsx src/mem.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.115.0",
+    "@mysten-incubation/memwal": "^0.1.0",
+    "@mysten/seal": "^1.3.7",
+    "@mysten/sui": "^2.23.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
