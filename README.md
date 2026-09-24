@@ -1,5 +1,8 @@
 # Minimal agent harness with portable memory
 
+> **This is the finished workshop solution.** The workshop starts from
+> [`main`](../../tree/main), where the memory is left for you to build.
+
 An agent loop whose memory lives on [Walrus](https://walrus.xyz) instead of in the
 process. [`src/agent.ts`](src/agent.ts) is the whole thing, and it is short enough
 to read in one sitting.
