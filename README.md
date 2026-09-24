@@ -1,10 +1,12 @@
-# Minimal agent harness with portable memory
+# Workshop: give an agent memory that outlives it
 
 An agent loop whose memory lives on [Walrus](https://walrus.xyz) instead of in the
-process. [`src/agent.ts`](src/agent.ts) is the whole thing, and it is short enough
-to read in one sitting.
+process. This branch is the starting point: [`src/agent.ts`](src/agent.ts) is a
+working chatbot with no memory, and in the workshop you build the memory in, one
+step at a time, with the coding agent of your choice. The finished version is on
+the [`complete-agent`](../../tree/complete-agent) branch.
 
-Every turn does three things:
+By the end, every turn does three things:
 
 | Step         | Call                        | What happens                                                           |
 | ------------ | --------------------------- | ---------------------------------------------------------------------- |
@@ -41,17 +43,59 @@ Fill in `.env`:
    recall and remember still work end to end, only the model call is stubbed. That
    is useful if you want to see the memory layer work without wiring up a model.
 
-Confirm the relayer is reachable:
+Check that everything is wired up:
 
 ```bash
-pnpm mem health          # → ok  ·  relayer 0.1.0
+pnpm mem health               # → ok  ·  relayer 0.1.0
+pnpm mem recall "anything"    # → 0 result(s) in "agent-demo"
 ```
 
-## Run
+`health` only proves the relayer is reachable. `recall` signs its request with
+your delegate key, so an answer with no error means your credentials work too.
+
+## Start: an agent that forgets
 
 ```bash
 pnpm agent
 ```
+
+Tell it something about yourself, then ask about it. It knows, because `history`
+holds the conversation inside the process. Now quit with ctrl-c, start it again,
+and ask the same question:
+
+```
+you › how do I take my coffee?
+agent › I don't have anything stored about how you take your coffee — tell me and
+        I'll remember it.
+```
+
+That's what the workshop fixes.
+
+## Build it
+
+Open [`src/agent.ts`](src/agent.ts). There are four TODOs, meant to be done in
+order:
+
+| TODO               | What you build                                         | It works when                                                   |
+| ------------------ | ------------------------------------------------------ | --------------------------------------------------------------- |
+| **1 · Connect**    | A `MemWal` client from the values in `.env`            | `pnpm agent` still starts cleanly                               |
+| **2 · Recall**     | Search memory for each input and hand the hits to the model | Recalled facts print before the answer. Seed one first with `pnpm mem remember "I take my coffee black."` |
+| **3 · Remember**   | Store the facts in each input with `analyze()`         | `stored n/n on Walrus` prints, and a restarted agent still knows |
+| **4 · Corrections** | Make a newer fact beat the one it replaces            | "what package manager do we use?" answers bun, not pnpm         |
+
+Use whichever coding agent you like. Give it the TODO you're on and the
+[SDK reference](https://docs.wal.app/walrus-memory/sdk/api-reference), let it
+write the code, and read what it wrote before you run it. "Things worth knowing"
+below covers the traps you'll hit along the way.
+
+Stuck? The whole solution is one command away:
+
+```bash
+git fetch origin complete-agent
+git diff main origin/complete-agent -- src/agent.ts
+```
+
+## Where you'll end up
 
 ```
   namespace agent-demo  ·  claude-opus-5  ·  ctrl-c to quit
@@ -120,15 +164,15 @@ It also means you can't update a fact in place. A correction is just a newer
 fact that contradicts an older one, and on relevance alone the older one often
 wins, because it states the thing you're asking about more directly. Recall with
 `sort: "recent"` fixes that: it over-fetches candidates, then orders them by
-write time, so the newest match comes first. That's why the agent passes it, and
-why it prints each memory's write time. One catch: `maxDistance` is applied
+write time, so the newest match comes first. That's TODO 4, and it's why the
+finished agent prints each memory's write time. One catch: `maxDistance` is applied
 before the sort, so a cutoff tight enough to drop the correction serves you the
 stale fact with no warning.
 
 **Recall has no relevance floor, so calibrate the cutoff yourself.** Recall
 returns the closest K matches, which means a small namespace will hand back
-filler simply because it is the closest thing available. That is what
-`maxDistance` in [`src/agent.ts`](src/agent.ts) is for.
+filler simply because it is the closest thing available. That is what recall's
+`maxDistance` option is for.
 
 The right cutoff depends on your data. Measured for this example, with
 natural-language questions against short stored facts:
@@ -145,9 +189,9 @@ but not always: in later runs, short facts of the same `User …` shape scored
 0.77 against questions that had nothing to do with them. The ranges overlap, so
 no cutoff is clean.
 
-This example defaults to `0.8`, because a dropped match is silent while a stray
-one is just noise the model is told to ignore. Set `MEMWAL_MAX_DISTANCE` in
-`.env` to change it; `0.7` is cleaner when you control how the questions are
+The finished agent defaults to `0.8`, because a dropped match is silent while a
+stray one is just noise the model is told to ignore, and reads
+`MEMWAL_MAX_DISTANCE` from `.env` to override it. `0.7` is cleaner when you control how the questions are
 phrased, as in a scripted demo. Either way, measure against your own corpus
 rather than reusing these numbers.
 

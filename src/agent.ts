@@ -1,18 +1,23 @@
 /**
- * A minimal agent harness with portable memory.
+ * A minimal agent harness, before it has any memory.
  *
- * Every turn does three things:
+ * Right now this is a plain chatbot. It remembers what you said earlier in the
+ * conversation, but only because `history` holds it in this process. Kill the
+ * process, start it again, and everything is gone.
+ *
+ * In the workshop we give it memory that lives on Walrus instead, encrypted and
+ * owned by a Sui account, so it survives the restart. Every turn will do three
+ * things:
  *
  *   1. RECALL    ask Walrus Memory what it knows that's relevant to this input
  *   2. GENERATE  hand those memories to the model as context, get an answer
  *   3. REMEMBER  extract durable facts from the turn and store them
  *
- * The memory lives on Walrus, encrypted, owned by a Sui account — not in this
- * process. Kill the process and start it again: step 1 still finds everything.
+ * GENERATE is already here. The TODOs mark where the rest goes. The finished
+ * version is on the `complete-agent` branch.
  */
 
 import { createInterface } from "node:readline/promises";
-import { MemWal } from "@mysten-incubation/memwal";
 import Anthropic from "@anthropic-ai/sdk";
 
 loadEnv();
@@ -21,15 +26,11 @@ loadEnv();
 
 const NAMESPACE = process.env.MEMWAL_NAMESPACE ?? "agent-demo";
 
-// Recall cutoff, see step 1 below. 0 or unset falls back to the default.
-const MAX_DISTANCE = Number(process.env.MEMWAL_MAX_DISTANCE) || 0.8;
-
-const memwal = MemWal.create({
-  key: required("MEMWAL_KEY"), // Ed25519 delegate key, registered on-chain
-  accountId: required("MEMWAL_ACCOUNT_ID"), // the MemWalAccount object on Sui
-  serverUrl: required("MEMWAL_SERVER_URL"),
-  namespace: NAMESPACE, // recall is scoped to owner + namespace
-});
+// TODO 1 · CONNECT
+//   Create a Walrus Memory client with `MemWal.create()` from
+//   "@mysten-incubation/memwal". It takes your delegate key, account ID and
+//   relayer URL, which are all in .env (read them with `required()` below),
+//   plus the namespace above.
 
 // ─── Model ───────────────────────────────────────────────────────────────
 
@@ -90,78 +91,34 @@ for (;;) {
   const input = (await rl.question("\x1b[36myou ›\x1b[0m ")).trim();
   if (!input) continue;
 
-  // 1. RECALL ─ semantic search over this memory space.
-  //    Results come back scored by cosine distance, lower is more similar.
-  //    There's no default relevance threshold, so maxDistance drops the
-  //    weak matches that would otherwise show up in a small namespace.
+  // TODO 2 · RECALL
+  //   Search this memory space for anything relevant to `input` with
+  //   `memwal.recall()`, and print each hit with its distance so you can see
+  //   what came back. Then put the texts in `memories` below.
   //
-  //    Calibrate this against your own data. Measured for this example, with
-  //    natural-language questions against short stored facts, relevant hits
-  //    land around 0.33-0.78 and unrelated ones mostly at 0.86+, but not
-  //    always: short facts in the same "User ..." shape can score 0.77 against
-  //    a question that has nothing to do with them. The ranges overlap, so no
-  //    cutoff is clean. The default leans loose, because dropping a real match
-  //    is silent while a stray one is just noise the model is told to ignore
-  //    (see SYSTEM). When you control the phrasing, as in a scripted demo,
-  //    MEMWAL_MAX_DISTANCE=0.7 is tighter and cleaner.
+  //   Once it works, ask something unrelated to anything you've stored and
+  //   look at what comes back. Recall has an option for that.
   //
-  //    sort: "recent" is what makes a correction stick. Memory here is
-  //    append-only, so updating a fact means storing a second one that
-  //    contradicts the first, and pure relevance has no reason to prefer the
-  //    newer one — it usually prefers the older one, which states the thing
-  //    you're asking about more directly. Say "Our package manager is pnpm."
-  //    and later "We switched from pnpm to bun last week.", then ask "what
-  //    package manager do we use?": the stale fact scores 0.33 and the
-  //    correction 0.61, so relevance answers pnpm. "recent" over-fetches
-  //    candidates, orders them by write time, and answers bun.
+  //   The relayer fails transiently now and then. `retrying()` at the bottom
+  //   of this file is ready for that; wrap the call in it.
   //
-  //    Mind the interaction with maxDistance: the threshold is applied first,
-  //    and only the survivors get reordered. A correction that the threshold
-  //    drops never reaches the sort, and you're served the stale fact with no
-  //    sign anything was missing. analyze() helps here — it keeps the old
-  //    value in the correction ("switched from pnpm to bun"), which anchors it
-  //    to the topic. The same correction stored as raw text, "We switched to
-  //    bun last week.", scores 0.79 for that question and 0.77 for an
-  //    unrelated one about deploy days, so no threshold separates the two.
-  const { results } = await retrying("recall", () =>
-    memwal.recall({ query: input, limit: 5, maxDistance: MAX_DISTANCE, sort: "recent" }),
-  ).catch((err) => {
-    // Out of retries. Answer without memories rather than killing the loop.
-    console.log(dim(`  ↳ recall failed: ${err.message}`));
-    return { results: [] };
-  });
-  for (const m of results) {
-    // Write time, so it's visible why a weaker match can rank first.
-    const at = m.created_at?.slice(0, 19).replace("T", " ") ?? "";
-    console.log(dim(`  ↳ recalled  ${m.distance.toFixed(2)}  ${at}  ${m.text}`));
-  }
+  // TODO 4 · CORRECTIONS (after TODO 3 works)
+  //   Tell it "our package manager is pnpm". Then tell it "we switched from
+  //   pnpm to bun last week". Restart, and ask "what package manager do we
+  //   use?". Which fact comes back first, and why? Look at what else
+  //   `recall()` accepts.
+  const memories: string[] = [];
 
-  // 2. GENERATE ─ the memories are just context in the prompt.
+  // GENERATE ─ the memories are just context in the prompt.
   history.push({ role: "user", content: input });
-  const answer = await generate(
-    history,
-    results.map((m) => m.text),
-  );
+  const answer = await generate(history, memories);
   console.log(`\x1b[35magent ›\x1b[0m ${answer}\n`);
 
-  // 3. REMEMBER ─ analyze() extracts discrete facts and returns them right
-  //    away; the embed → encrypt → upload → index work runs in the
-  //    background, one job per fact.
-  const { facts, job_ids } = await retrying("analyze", () =>
-    memwal.analyze(input),
-  ).catch((err) => {
-    console.log(dim(`  ↳ store failed: ${err.message}\n`));
-    return { facts: [], job_ids: [] as string[] };
-  });
-  if (facts.length) {
-    console.log(dim(`  ↳ storing   ${facts.map((f) => f.text).join(" · ")}`));
-    memwal
-      .waitForRememberJobs(job_ids)
-      .then(({ succeeded, total }) =>
-        console.log(dim(`  ↳ stored    ${succeeded}/${total} on Walrus\n`)),
-      )
-      .catch((err) => console.log(dim(`  ↳ store failed: ${err.message}\n`)));
-  }
+  // TODO 3 · REMEMBER
+  //   Store what's worth keeping from `input`. `memwal.analyze()` has an LLM
+  //   pull out discrete facts and stores each one. It returns as soon as the
+  //   jobs are accepted, so the loop stays responsive. The writes take 20-30
+  //   seconds to land; `memwal.waitForRememberJobs()` tells you when they have.
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────

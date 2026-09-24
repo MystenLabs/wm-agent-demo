@@ -44,8 +44,8 @@ switch (command) {
       // distance is cosine, lower is closer. Nothing is filtered here, so
       // this is the place to calibrate: run the questions you expect against
       // your own facts and see where relevant and unrelated hits land. For
-      // this example's data they overlap around 0.77-0.8; `agent.ts` explains
-      // the default it picks and how to override it.
+      // this example's data they overlap around 0.77-0.8; `agent.ts` on the
+      // `complete-agent` branch explains the default it picks.
       console.log(`  ${m.distance.toFixed(3)}  ${m.text}`);
       console.log(`          \x1b[2mblob ${m.blob_id}\x1b[0m`);
     }
