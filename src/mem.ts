@@ -41,8 +41,11 @@ switch (command) {
     const { results, total } = await memwal.recall({ query: arg, limit: 10 });
     console.log(`${total} result(s) in "${NAMESPACE}"\n`);
     for (const m of results) {
-      // distance is cosine: <0.25 near-duplicate, 0.25–0.55 related,
-      // 0.55–0.7 weak, >=0.7 usually unrelated.
+      // distance is cosine, lower is closer. Nothing is filtered here, so
+      // this is the place to calibrate: run the questions you expect against
+      // your own facts and see where relevant and unrelated hits land. For
+      // this example's data they overlap around 0.77-0.8; `agent.ts` explains
+      // the default it picks and how to override it.
       console.log(`  ${m.distance.toFixed(3)}  ${m.text}`);
       console.log(`          \x1b[2mblob ${m.blob_id}\x1b[0m`);
     }
@@ -68,6 +71,9 @@ switch (command) {
     console.log(
       `restored ${r.restored}  ·  already indexed ${r.skipped}  ·  found on-chain ${r.total}`,
     );
+    // Restore is single-shot with no cursor. `truncated` is how it tells you
+    // the pass was incomplete — raising the limit may or may not fix it.
+    if (r.truncated) console.log("incomplete — run it again, or raise the limit");
     break;
   }
 

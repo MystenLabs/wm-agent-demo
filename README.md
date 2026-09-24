@@ -19,7 +19,7 @@ them again.
 ## Setup
 
 ```bash
-pnpm install
+pnpm install          # Node 22 or newer
 cp .env.example .env
 ```
 
@@ -56,24 +56,38 @@ pnpm agent
 ```
   namespace agent-demo  ·  claude-opus-5  ·  ctrl-c to quit
 
-you › I prefer pnpm over npm, and I always use TypeScript strict mode.
-agent › Noted — pnpm and strict mode it is.
-  ↳ storing   User prefers pnpm over npm · User always uses TypeScript strict mode
+you › I always use TypeScript strict mode, and our package manager is pnpm.
+agent › Got it — TypeScript strict mode and pnpm noted; I'll assume both in any
+        code or setup suggestions going forward.
+  ↳ storing   User always uses TypeScript strict mode · User's package manager is pnpm
   ↳ stored    2/2 on Walrus
+you › We switched from pnpm to bun last week.
+  ↳ recalled  0.68  2026-09-24 13:15:43  User always uses TypeScript strict mode
+agent › Noted — I'll use bun for install/run commands from now on, still with
+        TypeScript strict mode.
+  ↳ storing   User switched from pnpm to bun last week.
+  ↳ stored    1/1 on Walrus
 ```
 
 Now kill it and start it again:
 
 ```
 you › what should I scaffold a new package with?
-  ↳ recalled  0.69  User prefers pnpm over npm
-  ↳ recalled  0.77  User always uses TypeScript strict mode
-agent › Use `pnpm init` and set up TypeScript with `strict: true` in your
-        tsconfig — matching your usual setup.
+  ↳ recalled  0.70  2026-09-24 13:16:59  User switched from pnpm to bun last week.
+  ↳ recalled  0.61  2026-09-24 13:16:34  User's package manager is pnpm
+  ↳ recalled  0.77  2026-09-24 13:15:43  User always uses TypeScript strict mode
+agent › Go with bun — you switched over last week, so `bun init` (or `bun create`)
+        keeps the new package consistent with the rest of your setup. Just make
+        sure `strict: true` is in the generated tsconfig, since bun's default
+        template is looser than you'd want.
 ```
 
 That second run is a brand-new process with an empty history array. The memories
 came back over the network.
+
+Look at the order, too. The pnpm fact is the closer match (0.61 against 0.70),
+but the correction comes first because it was written later. That is
+`sort: "recent"`, covered below.
 
 ## Poke at the memory directly
 
@@ -102,6 +116,15 @@ is not filtered out of the results, it never happens.
 you two entries that both surface in recall. Deduplicate before writing if that
 matters to you.
 
+It also means you can't update a fact in place. A correction is just a newer
+fact that contradicts an older one, and on relevance alone the older one often
+wins, because it states the thing you're asking about more directly. Recall with
+`sort: "recent"` fixes that: it over-fetches candidates, then orders them by
+write time, so the newest match comes first. That's why the agent passes it, and
+why it prints each memory's write time. One catch: `maxDistance` is applied
+before the sort, so a cutoff tight enough to drop the correction serves you the
+stale fact with no warning.
+
 **Recall has no relevance floor, so calibrate the cutoff yourself.** Recall
 returns the closest K matches, which means a small namespace will hand back
 filler simply because it is the closest thing available. That is what
@@ -117,10 +140,16 @@ natural-language questions against short stored facts:
 | "what should I scaffold a new package with?"   | 0.692                        | 0.767                     | 0.866              |
 | "set up a new package in this repo"            | 0.739                        | 0.815                     | 0.869              |
 
-Relevant hits land around **0.33–0.82** and unrelated ones at **0.86+**, so this
-example uses `0.8`. Short facts embedded at this length are not cleanly
-separable, so expect some overlap either way, and measure against your own corpus
-rather than reusing this number.
+Relevant hits land around **0.33–0.82** and unrelated ones mostly at **0.86+**,
+but not always: in later runs, short facts of the same `User …` shape scored
+0.77 against questions that had nothing to do with them. The ranges overlap, so
+no cutoff is clean.
+
+This example defaults to `0.8`, because a dropped match is silent while a stray
+one is just noise the model is told to ignore. Set `MEMWAL_MAX_DISTANCE` in
+`.env` to change it; `0.7` is cleaner when you control how the questions are
+phrased, as in a scripted demo. Either way, measure against your own corpus
+rather than reusing these numbers.
 
 **Durable writes take 20–30 seconds.** `analyze()` and `remember()` return as
 soon as the job is accepted, so the loop stays responsive, but the embed →
@@ -147,8 +176,16 @@ revoke individually.
   });
   ```
 
-- **Idempotent writes.** The relayer does not deduplicate, so an at-least-once job
-  queue will store the same memory twice. Gate writes on a key you control.
+- **Idempotent writes.** `remember` and `rememberAndWait` take an
+  `idempotencyKey`, which collapses a retried write onto the original job rather
+  than paying for a second one:
+
+  ```ts
+  await memwal.rememberAndWait(fact, NAMESPACE, { idempotencyKey: `${turnId}:0` });
+  ```
+
+  That covers transport retries. It does not deduplicate by content, so an
+  at-least-once job queue still needs a key you control.
 - **Multi-tenant apps.** One namespace per user (`myapp-<wallet>`) if a single
   account serves many users. See the
   [multi-tenant cookbook](https://docs.wal.app/walrus-memory/sdk/cookbook-multi-tenant).
