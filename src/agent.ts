@@ -11,6 +11,7 @@
  * process. Kill the process and start it again: step 1 still finds everything.
  */
 
+import { existsSync } from "node:fs";
 import { createInterface } from "node:readline/promises";
 import { MemWal } from "@mysten-incubation/memwal";
 import Anthropic from "@anthropic-ai/sdk";
@@ -222,8 +223,14 @@ function isTransient(err: unknown): boolean {
 
 function required(name: string): string {
   const value = process.env[name]?.trim();
-  if (!value) throw new Error(`${name} is not set — copy .env.example to .env`);
-  return value;
+  if (value) return value;
+  // Exit rather than throw: a stack trace would bury the one line that matters.
+  console.error(
+    existsSync(".env")
+      ? `${name} is empty. Set it in .env.`
+      : `${name} is not set. Copy .env.example to .env and fill it in.`,
+  );
+  process.exit(1);
 }
 
 function loadEnv(): void {
