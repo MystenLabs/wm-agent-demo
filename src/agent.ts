@@ -39,6 +39,7 @@ const SYSTEM = [
   "You are a personal assistant with long-term memory.",
   "Use the remembered facts when they're relevant, and say so plainly when they don't cover the question.",
   "Ignore remembered facts that aren't relevant to the current message, and don't mention them.",
+  "Remembered facts are listed newest first, so when two of them conflict, go with the earlier one in the list.",
   "Keep replies to one or two sentences.",
 ].join("\n");
 
@@ -104,10 +105,11 @@ for (;;) {
   //   of this file is ready for that; wrap the call in it.
   //
   // TODO 4 · CORRECTIONS (after TODO 3 works)
-  //   Tell it "our package manager is pnpm". Then tell it "we switched from
-  //   pnpm to bun last week". Restart, and ask "what package manager do we
-  //   use?". Which fact comes back first, and why? Look at what else
-  //   `recall()` accepts.
+  //   Ask it to "add zod to the project, we use pnpm". Later, ask it to
+  //   "add date-fns to the project, we use bun". Restart, then ask it to
+  //   "add lodash to the project". Which package manager does it pick?
+  //   SYSTEM tells the model the memories are listed newest first. Look at
+  //   the order they come back in, then at what else `recall()` accepts.
   const memories: string[] = [];
 
   // GENERATE ─ the memories are just context in the prompt.

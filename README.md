@@ -81,7 +81,7 @@ order:
 | **1 · Connect**    | A `MemWal` client from the values in `.env`            | `pnpm agent` still starts cleanly                               |
 | **2 · Recall**     | Search memory for each input and hand the hits to the model | Recalled facts print before the answer. Seed one first with `pnpm mem remember "I take my coffee black."` |
 | **3 · Remember**   | Store the facts in each input with `analyze()`         | `stored n/n on Walrus` prints, and a restarted agent still knows |
-| **4 · Corrections** | Make a newer fact beat the one it replaces            | "what package manager do we use?" answers bun, not pnpm         |
+| **4 · Corrections** | Make the newer of two conflicting facts win            | After a restart, "add lodash to the project" gets `bun add lodash`, not `pnpm add lodash` |
 
 Use whichever coding agent you like. Give it the TODO you're on and the
 [SDK reference](https://docs.wal.app/walrus-memory/sdk/api-reference), let it
