@@ -69,6 +69,10 @@ agent › I don't have anything stored about how you take your coffee — tell m
         I'll remember it.
 ```
 
+Without an Anthropic key the agent runs in echo mode, and shows the same thing
+in plain terms: during the session it repeats back what you said earlier, and
+after the restart it has nothing.
+
 That's what the workshop fixes.
 
 ## Build it

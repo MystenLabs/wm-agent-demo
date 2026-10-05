@@ -51,9 +51,16 @@ async function generate(
   memories: string[],
 ): Promise<string> {
   if (!anthropic) {
-    const text = memories.length
-      ? `(echo mode) I remember: ${memories.join("; ")}`
-      : "(echo mode) I don't have anything on that yet.";
+    // No model, so show what one would have been given: what this process
+    // remembers (`history`) and what came back from Walrus (`memories`).
+    const said = history
+      .slice(0, -1)
+      .filter((m) => m.role === "user" && typeof m.content === "string")
+      .map((m) => m.content);
+    const parts: string[] = [];
+    if (said.length) parts.push(`earlier in this session you said: ${said.join("; ")}`);
+    if (memories.length) parts.push(`I remember: ${memories.join("; ")}`);
+    const text = `(echo mode) ${parts.join(" · ") || "I don't have anything on that yet."}`;
     history.push({ role: "assistant", content: text });
     return text;
   }
