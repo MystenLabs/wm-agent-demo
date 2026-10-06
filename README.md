@@ -83,7 +83,7 @@ order:
 | TODO               | What you build                                         | It works when                                                   |
 | ------------------ | ------------------------------------------------------ | --------------------------------------------------------------- |
 | **1 · Connect**    | A `MemWal` client from the values in `.env`            | `pnpm agent` still starts cleanly                               |
-| **2 · Recall**     | Search memory for each input and hand the hits to the model | Recalled facts print before the answer. Seed one first with `pnpm mem remember "I take my coffee black."` |
+| **2 · Recall**     | Search memory for each input and hand the hits to the model, then add a cutoff (2b) once you've seen what comes back for an unrelated question | Recalled facts print with their distance and write time before the answer. Seed one first with `pnpm mem remember "I take my coffee black."` |
 | **3 · Remember**   | Store the facts in each input with `analyze()`         | `stored n/n on Walrus` prints, and a restarted agent still knows |
 | **4 · Corrections** | Make the newer of two conflicting facts win            | After a restart, "add lodash to the project" gets `bun add lodash`, not `pnpm add lodash` |
 

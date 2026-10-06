@@ -102,16 +102,18 @@ for (;;) {
 
   // TODO 2 · RECALL
   //   Search this memory space for anything relevant to `input` with
-  //   `memwal.recall()`, and print each hit with its distance so you can see
-  //   what came back. Then put the texts in `memories` below.
-  //
-  //   Once it works, ask something unrelated to anything you've stored and
-  //   look at what comes back. Recall has an option for that.
+  //   `memwal.recall()`. Print each hit with its distance and its write time
+  //   (`created_at`) so you can see what came back, then put the texts in
+  //   `memories` below. Recall only: no cutoff and no sorting yet.
   //
   //   The relayer fails transiently now and then. `retrying()` at the bottom
   //   of this file is ready for that; wrap the call in it.
   //
-  // TODO 4 · CORRECTIONS (after TODO 3 works)
+  // TODO 2b · CUTOFF (try it yourself first, after TODO 2 runs)
+  //   Ask something unrelated to anything you've stored and look at what
+  //   comes back. Recall has an option for that.
+  //
+  // TODO 4 · CORRECTIONS (try it yourself first, after TODO 3 works)
   //   Ask it to "add zod to the project, we use pnpm". Later, ask it to
   //   "add date-fns to the project, we use bun". Restart, then ask it to
   //   "add lodash to the project". Which package manager does it pick?
