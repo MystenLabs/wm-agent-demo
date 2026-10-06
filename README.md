@@ -151,9 +151,11 @@ pnpm mem restore 50                            # rebuild the index from Walrus
 
 ## Things worth knowing
 
-**Pass `serverUrl` explicitly.** The SDK has a default, but being explicit keeps
-it obvious which network a given run is writing to, and lets you move between
-mainnet and testnet by editing `.env` rather than code.
+**`serverUrl` defaults to mainnet.** If you don't pass one, the SDK uses
+`https://relayer.memory.walrus.xyz`, the same URL `.env` sets. This example still
+reads it from `.env`, so switching to testnet is a one-line change.
+`https://relayer-staging.memory.walrus.xyz` is a separate deployment on Sui
+testnet, and mainnet credentials get a 401 there.
 
 **Namespaces are opaque, flat and exact-match.** `agent-demo` and `Agent-Demo`
 are two different memory spaces, and `chat/user-42` is a single label rather than
